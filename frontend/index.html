@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@shadcn/ui/dist/shadcn.css"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="dark bg-gray-950 text-white flex items-center justify-center min-h-screen p-6">
+
+    <div class="bg-gray-900 p-8 rounded-xl shadow-lg w-full max-w-2xl">
+        <h2 class="text-3xl font-bold mb-6 text-center">InstaScrape</h2>
+
+        <form hx-post="/run_toutatis/" hx-target="#output" hx-swap="innerHTML" class="space-y-4">
+            <label class="block text-lg">Instagram Username/URL:</label>
+            <input type="text" name="instagram_input" class="border p-3 w-full rounded-lg bg-gray-800 text-white" required>
+
+            <label class="block text-lg">Session Cookie:</label>
+            <input type="text" name="session_cookie" class="border p-3 w-full rounded-lg bg-gray-800 text-white" required>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg text-lg shadow-md">
+                Run InstaScrape
+            </button>
+        </form>
+
+        <div id="output" class="mt-6 p-6 bg-gray-800 rounded-lg shadow-lg text-lg"></div>
+    </div>
+
+    <script>
+        function copyToClipboard(button, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                button.innerHTML = `<i data-lucide="check"></i> Copied!`;
+                lucide.createIcons();
+                setTimeout(() => {
+                    button.innerHTML = `<i data-lucide="clipboard"></i> Copy`;
+                    lucide.createIcons();
+                }, 2000);
+            }).catch(err => {
+                console.error("Error copying text: ", err);
+            });
+        }
+
+        document.body.addEventListener('htmx:afterSwap', function(event) {
+            let data = event.detail.elt.innerText;
+            try {
+                let jsonData = JSON.parse(data);
+                let outputDiv = document.getElementById("output");
+
+                const infoRow = (label, value, copy = false) => {
+                    if (!value || value === "N/A") return "";
+                    return `
+                        <div class="flex items-center justify-between p-2 border-b border-gray-700">
+                            <p class="text-gray-300"><strong>${label}:</strong> ${value}</p>
+                            ${copy ? `<button onclick="copyToClipboard(this, '${value}')" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md text-sm text-white flex items-center gap-1">
+                                <i data-lucide="clipboard"></i> Copy
+                            </button>` : ""}
+                        </div>
+                    `;
+                };
+
+                outputDiv.innerHTML = `
+                    <div class="text-center">
+                        ${jsonData["Profile Picture"] && jsonData["Profile Picture"] !== "N/A" ? 
+                            `<img src="/proxy-image/?url=${encodeURIComponent(jsonData["Profile Picture"])}" class="w-32 h-32 mx-auto rounded-full border shadow-md mb-4">` : ""}
+                        <h3 class="text-2xl font-bold mt-2">${jsonData["Informations about"] || "Unknown User"}</h3>
+                        ${infoRow("User ID", jsonData["userID"])}
+                    </div>
+
+                    <div class="mt-6 space-y-4 text-left">
+                        ${infoRow("Full Name", jsonData["Full Name"], true)}
+                        ${infoRow("Username", jsonData["Informations about"], true)}
+
+                        <div class="p-4 bg-gray-900 rounded-lg shadow-md">
+                            <p class="text-gray-300 text-lg"><strong>Followers:</strong></p>
+                            <div class="flex items-center justify-between mt-1">
+                                <p class="text-white text-xl">${jsonData["Follower"] || "N/A"}</p>
+                                ${jsonData["Follower"] && jsonData["Follower"] !== "N/A" ? 
+                                    `<button onclick="copyToClipboard(this, '${jsonData["Follower"]}')" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md text-sm text-white flex items-center gap-1">
+                                        <i data-lucide="clipboard"></i> Copy
+                                    </button>` : ""}
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-gray-900 rounded-lg shadow-md">
+                            <p class="text-gray-300 text-lg"><strong>Following:</strong></p>
+                            <p class="text-white text-xl mt-1">${jsonData["Following"] || "N/A"}</p>
+                        </div>
+
+                        ${infoRow("Business Account", jsonData["Is buisness Account"])}
+                        ${infoRow("Private Account", jsonData["Is private Account"])}
+                        ${infoRow("Number of Posts", jsonData["Number of posts"])}
+                        ${infoRow("IGTV Posts", jsonData["IGTV posts"])}
+                        ${infoRow("Biography", jsonData["Biography"])}
+
+                        <div class="p-4 bg-gray-900 rounded-lg shadow-md">
+                            <p class="text-gray-300 text-lg"><strong>Public Email:</strong></p>
+                            <div class="flex items-center justify-between mt-1">
+                                <p class="text-white text-xl">${jsonData["Public Email"] || "N/A"}</p>
+                                ${jsonData["Public Email"] && jsonData["Public Email"] !== "N/A" ? 
+                                    `<button onclick="copyToClipboard(this, '${jsonData["Public Email"]}')" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md text-sm text-white flex items-center gap-1">
+                                        <i data-lucide="clipboard"></i> Copy
+                                    </button>` : ""}
+                            </div>
+                        </div>
+
+                        ${infoRow("Public Phone", jsonData["Public Phone"])}
+                        ${infoRow("Obfuscated Email", jsonData["Obfuscated email"])}
+                        ${infoRow("Obfuscated Phone", jsonData["Obfuscated phone"])}
+
+                        ${jsonData["External url"] && jsonData["External url"] !== "N/A" ? 
+                            `<p class="text-lg"><strong>External URL:</strong> <a href="${jsonData["External url"]}" target="_blank" class="text-blue-400 underline">${jsonData["External url"]}</a></p>` : ""}
+                    </div>
+                `;
+
+                lucide.createIcons(); // Refresh icons after updating HTML
+            } catch (error) {
+                console.error("Error parsing JSON:", error);
+            }
+        });
+    </script>
+
+</body>
+</html>
